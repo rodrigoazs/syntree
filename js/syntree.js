@@ -6,6 +6,27 @@ var margin = 15; // Number of pixels from tree to edge on each side.
 var padding_above_text = 6; // Lines will end this many pixels above text.
 var padding_below_text = 6;
 
+var fabric_canvas = new fabric.Canvas('c');
+var fabric_array = [];
+clearFabricCanvas();
+
+
+function clearFabricCanvas()
+{
+	fabric_canvas.clear();
+	fabric_canvas.setBackgroundColor('#fff');
+	fabric_array = [];
+}
+
+$("#save").click(function(){
+		//window.open(fabric_canvas.toDataURL("image/png"));
+		var link = document.createElement('a');
+		link.href = fabric_canvas.toDataURL("image/png");
+		link.download = 'image.png';
+		document.body.appendChild(link);
+		link.click();
+});
+
 function Node() {
 	this.value = null;
 	this.step = null; // Horizontal distance between children.
@@ -30,18 +51,18 @@ function Node() {
 Node.prototype.set_siblings = function(parent) {
 	for (var i = 0; i < this.children.length; i++)
 		this.children[i].set_siblings(this);
-	
+
 	this.has_children = (this.children.length > 0);
 	this.parent = parent;
-	
+
 	if (this.has_children) {
 		this.first = this.children[0];
 		this.last = this.children[this.children.length - 1];
 	}
-	
+
 	for (var i = 0; i < this.children.length - 1; i++)
 		this.children[i].next = this.children[i+1];
-	
+
 	for (var i = 1; i < this.children.length; i++)
 		this.children[i].previous = this.children[i-1];
 }
@@ -64,13 +85,13 @@ Node.prototype.set_width = function(ctx, vert_space, hor_space, term_font, nonte
 
 	for (var child = this.first; child != null; child = child.next)
 		child.set_width(ctx, vert_space, hor_space, term_font, nonterm_font);
-	
+
 	if (!this.has_children) {
 		this.left_width = val_width / 2;
 		this.right_width = val_width / 2;
 		return;
 	}
-	
+
 	// Figure out how wide apart the children should be placed.
 	// The spacing between them should be equal.
 	this.step = 0;
@@ -78,16 +99,16 @@ Node.prototype.set_width = function(ctx, vert_space, hor_space, term_font, nonte
 		var space = child.right_width + hor_space + child.next.left_width;
 		this.step = Math.max(this.step, space);
 	}
-	
+
 	this.left_width = 0.0;
 	this.right_width = 0.0;
-	
+
 	if (this.has_children) {
 		var sub = ((this.children.length - 1) / 2) * this.step;
 		this.left_width = sub + this.first.left_width;
 		this.right_width = sub + this.last.right_width;
 	}
-	
+
 	this.left_width = Math.max(this.left_width, val_width / 2);
 	this.right_width = Math.max(this.right_width, val_width / 2);
 
@@ -104,7 +125,7 @@ Node.prototype.assign_location = function(x, y, font_size, term_lines) {
 	// floor + 0.5 for antialiasing
 	this.x = Math.floor(x) + 0.5;
 	this.y = Math.floor(y) + 0.5;
-	
+
 	if (this.has_children) {
 		var left_start = x - (this.step)*((this.children.length-1)/2);
 		for (var i = 0; i < this.children.length; i++)
@@ -119,20 +140,23 @@ Node.prototype.draw = function(ctx, font_size, term_font, nonterm_font, color, t
 	ctx.font = term_font;
 	if (this.has_children)
 		ctx.font = nonterm_font;
-		
+
 	ctx.fillStyle = "black";
 	if (color) {
 		ctx.fillStyle = "green";
 		if (this.has_children)
 			ctx.fillStyle = "blue";
 	}
-	
+
 	ctx.fillText(this.value, this.x, this.y);
+	// fabricjs
+	fabric_array.push(this);
+
 	for (var child = this.first; child != null; child = child.next)
 		child.draw(ctx, font_size, term_font, nonterm_font, color, term_lines);
-	
+
 	if (!this.parent) return;
-	
+
 	if (this.draw_triangle) {
 		ctx.moveTo(this.parent.x, this.parent.y + padding_below_text);
 		ctx.lineTo(this.x - this.left_width, this.y - font_size - padding_above_text);
@@ -141,9 +165,9 @@ Node.prototype.draw = function(ctx, font_size, term_font, nonterm_font, color, t
 		ctx.stroke();
 		return;
 	}
-	
+
 	if ((!this.has_children) && (!term_lines) && (this.parent.children.length == 1)) return;
-	
+
 	ctx.moveTo(this.parent.x, this.parent.y + padding_below_text);
 	ctx.lineTo(this.x, this.y - font_size - padding_above_text);
 	ctx.stroke();
@@ -154,7 +178,7 @@ Node.prototype.find_head = function(label) {
 		var res = child.find_head(label);
 		if (res != null) return res;
 	}
-	
+
 	if (this.label == label) return this;
 	return null;
 }
@@ -162,7 +186,7 @@ Node.prototype.find_head = function(label) {
 Node.prototype.find_movement = function(mlarr, root) {
 	for (var child = this.first; child != null; child = child.next)
 		child.find_movement(mlarr, root);
-	
+
 	if (this.tail != null) {
 		var m = new MovementLine;
 		m.tail = this;
@@ -174,14 +198,14 @@ Node.prototype.find_movement = function(mlarr, root) {
 Node.prototype.reset_chains = function() {
 	this.head_chain = null;
 	this.tail_chain = null;
-	
+
 	for (var child = this.first; child != null; child = child.next)
 		child.reset_chains();
 }
 
 Node.prototype.find_intervening_height = function(leftwards) {
 	var max_y = this.y;
-	
+
 	var n = this;
 	while (true) {
 		if (leftwards) {n = n.previous;} else {n = n.next;}
@@ -189,8 +213,8 @@ Node.prototype.find_intervening_height = function(leftwards) {
 		if ((n.head_chain) || (n.tail_chain)) return max_y;
 		max_y = Math.max(max_y, n.max_y);
 	}
-	
-	max_y = Math.max(max_y, 
+
+	max_y = Math.max(max_y,
 		this.parent.find_intervening_height(leftwards));
 	return max_y;
 }
@@ -210,17 +234,17 @@ function MovementLine() {
 MovementLine.prototype.set_up = function() {
 	this.should_draw = 0;
 	if ((this.tail == null) || (this.head == null)) return;
-	
+
 	// Check to see if head is parent of tail,
 	if (!this.check_head()) return;
-	
+
 	// Find the last common ancestor.
 	this.find_lca();
 	if (this.lca == null) return;
-	
+
 	// Find out the greatest intervening height.
 	this.find_intervening_height();
-	
+
 	this.dest_x = this.head.x;
 	this.dest_y = this.head.max_y;
 	this.bottom_y = this.max_y + vert_space;
@@ -261,8 +285,8 @@ MovementLine.prototype.find_intervening_height = function() {
 			break;
 		}
 	}
-	
-	this.max_y = Math.max(this.tail.find_intervening_height( this.leftwards), 
+
+	this.max_y = Math.max(this.tail.find_intervening_height( this.leftwards),
 	                      this.head.find_intervening_height(!this.leftwards),
 						  this.head.max_y);
 }
@@ -274,7 +298,7 @@ MovementLine.prototype.draw = function(ctx) {
 		tail_x -= 6;
 		this.dest_x += 6;
 	}
-	
+
 	ctx.moveTo(tail_x, this.tail.y + padding_below_text);
 	ctx.quadraticCurveTo(tail_x, this.bottom_y, (tail_x + this.dest_x) / 2, this.bottom_y);
 	ctx.quadraticCurveTo(this.dest_x, this.bottom_y, this.dest_x, this.dest_y + padding_below_text);
@@ -289,7 +313,7 @@ MovementLine.prototype.draw = function(ctx) {
 	ctx.fill();
 }
 
-function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, color, term_lines) {	
+function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, color, term_lines) {
 	// Clean up the string
 	str = str.replace(/^\s+/, "");
 	var open = 0;
@@ -305,14 +329,14 @@ function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, colo
 		str = str + "]";
 		open--;
 	}
-	
+
 	var root = parse(str);
 	root.set_siblings(null);
 	root.check_triangle();
-	
+
 	var canvas;
 	var ctx;
-	
+
 	try {
 		// Make a new canvas. Required for IE compatability.
 		canvas = document.createElement("canvas");
@@ -325,14 +349,14 @@ function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, colo
 	root.set_width(ctx, vert_space, hor_space, term_font, nonterm_font);
 	root.assign_location(0, 0, font_size, term_lines);
 	root.find_height();
-	
+
 	var movement_lines = new Array();
 	root.find_movement(movement_lines, root);
 	for (var i = 0; i < movement_lines.length; i++) {
 		root.reset_chains();
 		movement_lines[i].set_up();
 	}
-	
+
 	// Set up the canvas.
 	var width = root.left_width + root.right_width + 2 * margin;
 	var height = root.max_y + font_size + 2 * margin;
@@ -341,7 +365,13 @@ function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, colo
 		if (movement_lines[i].max_y == root.max_y) {
 			height += vert_space; break;
 		}
-	
+
+	var width_padding = 5;
+	var height_padding = 10;
+	fabric_canvas.setHeight(height + height_padding);
+	fabric_canvas.setWidth(width + 2*width_padding);
+	fabric_canvas.renderAll();
+
 	canvas.id = "canvas";
 	canvas.width = width;
 	canvas.height = height;
@@ -349,14 +379,50 @@ function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, colo
 	ctx.fillRect(0, 0, width, height);
 	ctx.fillStyle = "rgb(0, 0, 0)";
 	ctx.textAlign = "center";
-	var x_shift = Math.floor(root.left_width + margin);
+	var x_shift = Math.floor(root.left_width + margin + width_padding);
 	var y_shift = Math.floor(font_size + margin);
 	ctx.translate(x_shift, y_shift);
-	
+
 	root.draw(ctx, font_size, term_font, nonterm_font, color, term_lines);
 	for (var i = 0; i < movement_lines.length; i++)
 		if (movement_lines[i].should_draw) movement_lines[i].draw(ctx);
-	
+
+	// fabricjs
+	for(var i=0; i<fabric_array.length; i++)
+	{
+		var node = fabric_array[i];
+		if(node.parent)
+		{
+			fabric_canvas.add(new fabric.Line([node.parent.x + x_shift, node.parent.y + y_shift, node.x + x_shift, node.y + y_shift], {
+							stroke: 'rgba(0,0,0,1)'
+			}));
+		}
+	}
+	for(var i=0; i<fabric_array.length; i++)
+	{
+		var node = fabric_array[i];
+		fabric_canvas.add(new fabric.Circle({
+			radius: 20,
+			fill: 'white',
+			top: node.y + y_shift,
+			left: node.x + x_shift,
+			strokeWidth: 1,
+			stroke: 'rgba(0,0,0,1)',
+			originX: 'center',
+			originY: 'center'
+		}));
+		fabric_canvas.add(new fabric.Text(node.value, {
+			top: node.y + y_shift,
+			left: node.x + x_shift,
+			originX: 'center',
+			originY: 'center',
+			fontFamily: 'Lucida Console',
+			fontStyle: 'italic',
+			fontSize: font_size + 8,
+			fill: "black"
+		}));
+	}
+
 	// Swap out the image
 	return Canvas2Image.saveAsPNG(canvas, true);
 }
@@ -382,11 +448,11 @@ function subscriptify(in_str) {
 
 function parse(str) {
 	var n = new Node();
-	
+
 	if (str[0] != "[") { // Text node
 		// Get any movement information.
-		// Make sure to collapse any spaces around <X> to one space, even if there is no space.	
-		str = str.replace(/\s*<(\w+)>\s*/, 
+		// Make sure to collapse any spaces around <X> to one space, even if there is no space.
+		str = str.replace(/\s*<(\w+)>\s*/,
 			function(match, tail) {
 				n.tail = tail;
 				return " ";
@@ -400,7 +466,7 @@ function parse(str) {
 	var i = 1;
 	while ((str[i] != " ") && (str[i] != "[") && (str[i] != "]")) i++;
 	n.value = str.substr(1, i-1)
-	n.value = n.value.replace(/\^/, 
+	n.value = n.value.replace(/:/,
 		function () {
 			n.starred = true;
 			return "";
@@ -412,7 +478,7 @@ function parse(str) {
 				return subscriptify(n.label);
 			return "";
 		});
-	
+
 	while (str[i] == " ") i++;
 	if (str[i] != "]") {
 		var level = 1;
