@@ -7,6 +7,7 @@ var padding_above_text = 6; // Lines will end this many pixels above text.
 var padding_below_text = 6;
 
 var fabric_canvas = new fabric.Canvas('c');
+fabric_canvas.selection = false;
 var fabric_array = [];
 clearFabricCanvas();
 
@@ -394,7 +395,8 @@ function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, colo
 		if(node.parent)
 		{
 			fabric_canvas.add(new fabric.Line([node.parent.x + x_shift, node.parent.y + y_shift, node.x + x_shift, node.y + y_shift], {
-							stroke: 'rgba(0,0,0,1)'
+				stroke: 'rgba(0,0,0,1)',
+				selectable: false
 			}));
 		}
 	}
@@ -409,7 +411,8 @@ function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, colo
 			strokeWidth: 1,
 			stroke: 'rgba(0,0,0,1)',
 			originX: 'center',
-			originY: 'center'
+			originY: 'center',
+			selectable: false
 		}));
 		fabric_canvas.add(new fabric.Text(node.value, {
 			top: node.y + y_shift,
@@ -419,7 +422,8 @@ function go(str, font_size, term_font, nonterm_font, vert_space, hor_space, colo
 			fontFamily: 'Lucida Console',
 			fontStyle: 'italic',
 			fontSize: font_size + 8,
-			fill: "black"
+			fill: "black",
+			selectable: false
 		}));
 	}
 
